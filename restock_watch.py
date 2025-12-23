@@ -2,7 +2,8 @@ import os, json, time, pathlib
 import requests
 
 URL = "https://www.psychkosjerky.com/shop/p/crispy-savory"
-CHECK_KEYWORD = "Sold Out"
+# CHECK_KEYWORD = "Sold Out"
+CHECK_KEYWORD = "dflksjdflkajf3rdflk;l"
 STATE_FILE = pathlib.Path("restock_state.json")
 
 def notify_wechat(title: str, content: str):
