@@ -37,9 +37,13 @@ def main():
         save_state(now)
         return
 
+    # 有货 -> 缺货：推送一次
+    if prev is False and now is True:
+        notify_wechat("❌ Psychko’s Jerky 缺货提醒", f"商品已缺货（Sold Out）。\n\n{URL}")
+
     # 缺货 -> 有货：推送一次
     if prev is True and now is False:
-        notify_wechat("🛒 Psychko’s Jerky 补货提醒", f"商品已补货！\n\n{URL}")
+        notify_wechat("✅ Psychko’s Jerky 补货提醒", f"商品已补货！\n\n{URL}")
 
     save_state(now)
 
