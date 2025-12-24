@@ -18,7 +18,14 @@ def fetch_html() -> str:
     return r.text
 
 def is_sold_out(html: str) -> bool:
-    return CHECK_KEYWORD in html
+    text = html.lower()
+
+    # 只要页面出现购买按钮文案，就认为有货
+    if ("add to cart" in text) or ("purchase" in text):
+        return False
+
+    # 否则才用 sold out 判断
+    return "sold out" in text
 
 def load_prev():
     if STATE_FILE.exists():
