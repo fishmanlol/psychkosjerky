@@ -30,7 +30,13 @@ def save_state(sold_out: bool):
 
 def main():
     prev = load_prev()["sold_out"]
-    now = is_sold_out(fetch_html())
+    
+    # now = is_sold_out(fetch_html())
+    html = fetch_html()
+    now = is_sold_out(html)
+    print("STATE_FILE:", STATE_FILE.resolve(), "exists:", STATE_FILE.exists())
+    print("prev:", prev, "now:", now)
+    print("has_add_to_cart:", "Add to Cart" in html, "has_purchase:", "Purchase" in html, "has_sold_out:", "Sold Out" in html)
 
     # 第一次运行：只记录，不推送
     if prev is None:
