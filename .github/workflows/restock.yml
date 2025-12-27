@@ -4,8 +4,8 @@ on:
   schedule:
     # 每小时采集数据（不发通知）
     - cron: '0 * * * *'
-    # 每天中午12点采集+通知（UTC 4:00 = 北京时间 12:00）
-    - cron: '0 4 * * *'
+    # 每天中午12点 PST 采集+通知（UTC 20:00 = PST 12:00）
+    - cron: '0 20 * * *'
   
   # 手动触发
   workflow_dispatch:
@@ -17,6 +17,9 @@ on:
 
 permissions:
   contents: write
+
+env:
+  TZ: America/Los_Angeles  # PST/PDT 时区
 
 jobs:
   monitor:
@@ -42,12 +45,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      # 判断是否是中午12点（UTC 4点）的定时任务
+      # 判断是否是中午12点 PST（UTC 20点）的定时任务
       - name: Check if noon
         id: check_noon
         run: |
           HOUR=$(date -u +%H)
-          if [ "$HOUR" = "04" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
+          if [ "$HOUR" = "20" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
           else
             echo "notify=false" >> $GITHUB_OUTPUT
@@ -71,5 +74,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add stock_history.csv stock_chart.png 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "📊 Stock update $(date +'%Y-%m-%d %H:%M UTC')"
+          git diff --staged --quiet || git commit -m "📊 Stock update $(date +'%Y-%m-%d %H:%M PST')"
           git push || echo "Nothing to push"
