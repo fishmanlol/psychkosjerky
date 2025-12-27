@@ -1,48 +1,56 @@
 #!/usr/bin/env python3
 """
-绘制 Psych Ko's Jerky 库存变化阶梯图
+Plot Psych Ko's Jerky stock history
 
-使用方法:
+Usage:
     python3 plot_stock_history.py
-
-依赖:
-    pip install pandas matplotlib
 """
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from pathlib import Path
+from datetime import timezone, timedelta
 
 HISTORY_FILE = Path("stock_history.csv")
 OUTPUT_FILE = Path("stock_chart.png")
 
+# 固定使用 PST 时区 (UTC-8)
+PST = timezone(timedelta(hours=-8))
+
 
 def load_data():
-    """加载并处理历史数据"""
     if not HISTORY_FILE.exists():
-        print(f"❌ 历史文件不存在: {HISTORY_FILE}")
-        print("   请先运行 restock_monitor.py 采集数据")
+        print(f"Error: {HISTORY_FILE} not found")
         return None
     
     df = pd.read_csv(HISTORY_FILE)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    
+    timestamps = []
+    for ts_str in df["timestamp"]:
+        if "+" in ts_str or "-" in ts_str[10:] or ts_str.endswith("Z"):
+            # 有时区信息，转换到 PST
+            dt = pd.to_datetime(ts_str)
+            if dt.tzinfo is not None:
+                dt = dt.tz_convert(PST)
+            # 去掉时区信息，matplotlib 才能正确显示
+            dt = dt.tz_localize(None)
+        else:
+            # 无时区信息，假设已经是 PST
+            dt = pd.to_datetime(ts_str)
+        timestamps.append(dt)
+    
+    df["timestamp"] = pd.to_datetime(timestamps)
     return df
 
 
 def plot_step_chart(df: pd.DataFrame):
-    """绘制阶梯图"""
-    
-    plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'PingFang SC', 'Heiti TC', 'SimHei']
-    plt.rcParams['axes.unicode_minus'] = False
-    
     products = df["product_name"].unique()
     
-    # 颜色方案
     colors = {
-        "mild": "#2E7D32",      # 深绿
-        "medium": "#F57C00",    # 橙色
-        "spicy": "#C62828",     # 深红
+        "mild": "#2E7D32",
+        "medium": "#F57C00",
+        "spicy": "#C62828",
     }
     
     fig, axes = plt.subplots(len(products), 1, figsize=(14, 5 * len(products)), sharex=True)
@@ -59,11 +67,8 @@ def plot_step_chart(df: pd.DataFrame):
                 continue
             
             color = colors.get(spice, "#666666")
-            
-            # 获取当前库存
             latest_qty = int(spice_df.iloc[-1]["quantity"])
             
-            # 阶梯图
             ax.step(
                 spice_df["timestamp"], 
                 spice_df["quantity"],
@@ -73,7 +78,6 @@ def plot_step_chart(df: pd.DataFrame):
                 color=color,
             )
             
-            # 数据点标记
             ax.scatter(
                 spice_df["timestamp"],
                 spice_df["quantity"],
@@ -83,7 +87,6 @@ def plot_step_chart(df: pd.DataFrame):
                 alpha=0.7,
             )
             
-            # 标记缺货点
             sold_out = spice_df[spice_df["sold_out"] == True]
             if not sold_out.empty:
                 ax.scatter(
@@ -94,25 +97,21 @@ def plot_step_chart(df: pd.DataFrame):
                     marker="X",
                     linewidths=2,
                     zorder=10,
-                    label="缺货" if spice == "mild" else "",
+                    label="Sold Out" if spice == "mild" else "",
                 )
         
-        # 样式
         ax.set_title(product, fontsize=14, fontweight="bold", pad=10)
-        ax.set_ylabel("库存数量", fontsize=12)
+        ax.set_ylabel("Stock", fontsize=12)
         ax.legend(loc="upper left", framealpha=0.9)
         ax.grid(True, alpha=0.3, linestyle="--")
         ax.set_ylim(bottom=-2, top=65)
         
-        # 缺货区域
         ax.axhspan(-2, 0, color="red", alpha=0.1)
         ax.axhline(y=0, color="red", linestyle="-", linewidth=1, alpha=0.5)
         
-        # 低库存警戒线
         ax.axhline(y=5, color="orange", linestyle="--", linewidth=1, alpha=0.7)
-        ax.text(ax.get_xlim()[1], 5, " 低库存", va="center", fontsize=9, color="orange")
+        ax.text(ax.get_xlim()[1], 5, " Low", va="center", fontsize=9, color="orange")
     
-    # X轴时间格式
     time_range = df["timestamp"].max() - df["timestamp"].min()
     if time_range.days > 7:
         axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
@@ -120,15 +119,18 @@ def plot_step_chart(df: pd.DataFrame):
     elif time_range.days > 1:
         axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M"))
         axes[-1].xaxis.set_major_locator(mdates.HourLocator(interval=6))
-    else:
+    elif time_range.total_seconds() > 3600:
         axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         axes[-1].xaxis.set_major_locator(mdates.MinuteLocator(interval=30))
+    else:
+        axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M"))
+        axes[-1].xaxis.set_major_locator(mdates.AutoDateLocator())
     
-    axes[-1].set_xlabel("时间", fontsize=12)
+    axes[-1].set_xlabel("Time (PST)", fontsize=12)
     plt.xticks(rotation=45, ha="right")
     
     fig.suptitle(
-        "Psych Ko's Jerky 库存变化追踪",
+        "Psych Ko's Jerky Stock Monitor",
         fontsize=16,
         fontweight="bold",
         y=0.98,
@@ -138,7 +140,7 @@ def plot_step_chart(df: pd.DataFrame):
     plt.subplots_adjust(top=0.93, hspace=0.15)
     
     plt.savefig(OUTPUT_FILE, dpi=150, bbox_inches="tight", facecolor="white")
-    print(f"✅ 图表已保存: {OUTPUT_FILE.resolve()}")
+    print(f"Chart saved: {OUTPUT_FILE.resolve()}")
     
     return fig
 
@@ -148,13 +150,8 @@ def main():
     if df is None:
         return
     
-    print(f"📊 正在生成图表... (共 {len(df)} 条记录)")
+    print(f"Generating chart... ({len(df)} records)")
     plot_step_chart(df)
-    
-    try:
-        plt.show()
-    except:
-        pass
 
 
 if __name__ == "__main__":
