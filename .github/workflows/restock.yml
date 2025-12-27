@@ -1,34 +1,75 @@
-name: Restock Watch
+name: Stock Monitor
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch: {}
+    # 每小时采集数据（不发通知）
+    - cron: '0 * * * *'
+    # 每天中午12点采集+通知（UTC 4:00 = 北京时间 12:00）
+    - cron: '0 4 * * *'
+  
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      notify:
+        description: '发送通知'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
-  run:
+  monitor:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Install deps
-        run: pip install requests
-
-      - name: Run watcher
+          python-version: '3.11'
+      
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      # 判断是否是中午12点（UTC 4点）的定时任务
+      - name: Check if noon
+        id: check_noon
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "$HOUR" = "04" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
+            echo "notify=true" >> $GITHUB_OUTPUT
+          else
+            echo "notify=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run stock monitor (collect only)
+        if: steps.check_noon.outputs.notify == 'false'
+        run: python restock_monitor.py
+      
+      - name: Run stock monitor (collect + notify)
+        if: steps.check_noon.outputs.notify == 'true'
         env:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
-        run: python restock_watch.py
-
-      - name: Commit state file
+        run: python restock_monitor.py --notify
+      
+      - name: Generate charts
+        run: python plot_stock_history.py
+      
+      - name: Commit updated data
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add restock_state.json || true
-          git commit -m "Update state" || true
-          git push || true
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add stock_history.csv stock_chart.png 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "📊 Stock update $(date +'%Y-%m-%d %H:%M UTC')"
+          git push || echo "Nothing to push"
