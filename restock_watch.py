@@ -1,9 +1,14 @@
-import os, json, time, pathlib
+import os, json, time, pathlib, re
 import requests
 
 URL = "https://www.psychkosjerky.com/shop/p/crispy-savory"
-CHECK_KEYWORD = "Sold Out"
 STATE_FILE = pathlib.Path("restock_state.json")
+
+# 只认这一种“明确缺货徽标”
+RE_SOLD_OUT_BADGE = re.compile(
+    r'<span[^>]*class="[^"]*\bproduct-mark\b[^"]*\bsold-out\b',
+    re.IGNORECASE
+)
 
 def notify_wechat(title: str, content: str):
     send_key = os.environ["SERVERCHAN_SENDKEY"]
@@ -18,14 +23,8 @@ def fetch_html() -> str:
     return r.text
 
 def is_sold_out(html: str) -> bool:
-    text = html.lower()
-
-    # 只要页面出现购买按钮文案，就认为有货
-    if ("add to cart" in text) or ("purchase" in text):
-        return False
-
-    # 否则才用 sold out 判断
-    return "sold out" in text
+    # 只要出现明确的 sold-out 徽标，就认为缺货
+    return bool(RE_SOLD_OUT_BADGE.search(html))
 
 def load_prev():
     if STATE_FILE.exists():
@@ -33,30 +32,43 @@ def load_prev():
     return {"sold_out": None}
 
 def save_state(sold_out: bool):
-    STATE_FILE.write_text(json.dumps({"sold_out": sold_out, "ts": int(time.time())}))
+    STATE_FILE.write_text(json.dumps({
+        "sold_out": sold_out,
+        "ts": int(time.time())
+    }))
 
 def main():
     prev = load_prev()["sold_out"]
-    
-    # now = is_sold_out(fetch_html())
+
     html = fetch_html()
     now = is_sold_out(html)
-    print("STATE_FILE:", STATE_FILE.resolve(), "exists:", STATE_FILE.exists())
-    print("prev:", prev, "now:", now)
-    print("has_add_to_cart:", "Add to Cart" in html, "has_purchase:", "Purchase" in html, "has_sold_out:", "Sold Out" in html)
+
+    # 调试信息（只看真实信号）
+    print(
+        "STATE_FILE:", STATE_FILE.resolve(), "exists:", STATE_FILE.exists(),
+        "| prev:", prev,
+        "| now:", now,
+        "| has_sold_out_badge:", bool(RE_SOLD_OUT_BADGE.search(html))
+    )
 
     # 第一次运行：只记录，不推送
     if prev is None:
         save_state(now)
         return
 
-    # 有货 -> 缺货：推送一次
+    # 有货 -> 缺货
     if prev is False and now is True:
-        notify_wechat("❌ Psychko’s Jerky 缺货提醒", f"商品已缺货（Sold Out）。\n\n{URL}")
+        notify_wechat(
+            "❌ Psychko’s Jerky 缺货提醒",
+            f"商品已缺货（Sold Out）。\n\n{URL}"
+        )
 
-    # 缺货 -> 有货：推送一次
+    # 缺货 -> 有货
     if prev is True and now is False:
-        notify_wechat("✅ Psychko’s Jerky 补货提醒", f"商品已补货！\n\n{URL}")
+        notify_wechat(
+            "✅ Psychko’s Jerky 补货提醒",
+            f"商品已补货！\n\n{URL}"
+        )
 
     save_state(now)
 
