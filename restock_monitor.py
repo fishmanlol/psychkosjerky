@@ -12,12 +12,19 @@ import sys
 import json
 import re
 import csv
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import urllib.request
 import urllib.parse
 from pathlib import Path
 
 # ============== 配置 ==============
+
+# 固定使用 PST 时区 (UTC-8)
+PST = timezone(timedelta(hours=-8))
+
+def now():
+    """获取当前时间（PST）"""
+    return datetime.now(PST)
 
 PRODUCTS = {
     "crispy-savory": {
@@ -87,14 +94,14 @@ def save_history(product_slug: str, product_name: str, spice: str, stock_info: d
                 "spice_level", "quantity", "unlimited", "sold_out",
             ])
         
-        now = datetime.now()
+        current_time = now()
         qty = stock_info.get("quantity", 0)
         unlimited = stock_info.get("unlimited", False)
         sold_out = not unlimited and qty == 0
         
         writer.writerow([
-            now.isoformat(),
-            int(now.timestamp()),
+            current_time.isoformat(),
+            int(current_time.timestamp()),
             product_slug,
             product_name,
             spice,
@@ -125,7 +132,7 @@ def notify_wechat(title: str, content: str):
 def build_daily_report(all_stock: dict) -> str:
     """生成每日库存报告"""
     lines = []
-    lines.append(f"📅 **{datetime.now().strftime('%Y-%m-%d %H:%M')}**\n")
+    lines.append(f"📅 **{now().strftime('%Y-%m-%d %H:%M')}**\n")
     
     for slug, product_info in PRODUCTS.items():
         product_name = product_info["name"]
@@ -160,7 +167,7 @@ def main():
     send_notify = "--notify" in sys.argv
     
     print(f"\n{'='*50}")
-    print(f"Psych Ko's Jerky 库存检查 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Psych Ko's Jerky 库存检查 - {now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"模式: {'采集+通知' if send_notify else '仅采集'}")
     print(f"{'='*50}\n")
     
