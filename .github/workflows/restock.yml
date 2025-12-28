@@ -2,12 +2,12 @@ name: Stock Monitor
 
 on:
   schedule:
-    # 每 15 分钟采集（避开整点）
-    - cron: '5,20,35,50 * * * *'
-    # 早上 9 点 PST 发通知（UTC 17:00）
-    - cron: '0 17 * * *'
-    # 下午 3 点 PST 发通知（UTC 23:00）
-    - cron: '0 23 * * *'
+    # 每 15 分钟采集数据（避开整点高峰）
+    - cron: '*/10 * * * *'
+    # 早上 9 点 PST 发通知（UTC 17:05）
+    - cron: '5 17 * * *'
+    # 下午 3 点 PST 发通知（UTC 23:05）
+    - cron: '5 23 * * *'
   
   # 手动触发
   workflow_dispatch:
@@ -47,15 +47,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      # 判断是否是通知时间（UTC 17点=PST 9am 或 UTC 23点=PST 3pm）
+      # 判断是否发送通知（基于触发的 cron 表达式）
       - name: Check if notification time
         id: check_notify
         run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" = "17" ] || [ "$HOUR" = "23" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
+          SCHEDULE="${{ github.event.schedule }}"
+          MANUAL="${{ github.event.inputs.notify }}"
+          
+          echo "Triggered by schedule: $SCHEDULE"
+          
+          # 只有特定的通知 cron 或手动触发才发通知
+          if [ "$SCHEDULE" = "5 17 * * *" ] || [ "$SCHEDULE" = "5 23 * * *" ] || [ "$MANUAL" = "true" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
+            echo "→ Will send notification"
           else
             echo "notify=false" >> $GITHUB_OUTPUT
+            echo "→ Data collection only"
           fi
       
       - name: Run stock monitor (collect only)
