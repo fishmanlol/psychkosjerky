@@ -123,8 +123,12 @@ def notify_wechat(title: str, content: str):
         data = urllib.parse.urlencode({"title": title, "desp": content}).encode("utf-8")
         req = urllib.request.Request(api, data=data, method="POST")
         with urllib.request.urlopen(req, timeout=20) as resp:
-            pass
-        print(f"[NOTIFIED] {title}")
+            result = json.loads(resp.read().decode("utf-8"))
+            print(f"[API Response] {result}")
+            if result.get("code") == 0:
+                print(f"[NOTIFIED] {title}")
+            else:
+                print(f"[NOTIFY FAILED] {result.get('message', 'Unknown error')}")
     except Exception as e:
         print(f"[NOTIFY ERROR] {e}")
 
