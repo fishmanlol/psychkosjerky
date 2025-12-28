@@ -2,8 +2,8 @@ name: Stock Monitor
 
 on:
   schedule:
-    # 每 15 分钟采集数据
-    - cron: '*/15 * * * *'
+    # 每 15 分钟采集（避开整点）
+    - cron: '5,20,35,50 * * * *'
     # 早上 9 点 PST 发通知（UTC 17:00）
     - cron: '0 17 * * *'
     # 下午 3 点 PST 发通知（UTC 23:00）
