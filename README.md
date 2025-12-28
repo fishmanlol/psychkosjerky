@@ -1,6 +1,6 @@
 # 🥩 Psych Ko's Jerky 库存监控
 
-自动追踪 [Psych Ko's Jerky](https://www.psychkosjerky.com) 库存变化，每天中午 12 点发送微信通知。
+自动追踪 [Psych Ko's Jerky](https://www.psychkosjerky.com) 库存变化
 
 ## 📊 实时库存图表
 
