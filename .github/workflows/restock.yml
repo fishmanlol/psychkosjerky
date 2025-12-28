@@ -2,10 +2,12 @@ name: Stock Monitor
 
 on:
   schedule:
-    # 每小时采集数据（不发通知）
-    - cron: '0 * * * *'
-    # 每天中午12点 PST 采集+通知（UTC 20:00 = PST 12:00）
-    - cron: '0 20 * * *'
+    # 每 15 分钟采集数据
+    - cron: '*/15 * * * *'
+    # 早上 9 点 PST 发通知（UTC 17:00）
+    - cron: '0 17 * * *'
+    # 下午 3 点 PST 发通知（UTC 23:00）
+    - cron: '0 23 * * *'
   
   # 手动触发
   workflow_dispatch:
@@ -45,23 +47,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      # 判断是否是中午12点 PST（UTC 20点）的定时任务
-      - name: Check if noon
-        id: check_noon
+      # 判断是否是通知时间（UTC 17点=PST 9am 或 UTC 23点=PST 3pm）
+      - name: Check if notification time
+        id: check_notify
         run: |
           HOUR=$(date -u +%H)
-          if [ "$HOUR" = "20" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
+          if [ "$HOUR" = "17" ] || [ "$HOUR" = "23" ] || [ "${{ github.event.inputs.notify }}" = "true" ]; then
             echo "notify=true" >> $GITHUB_OUTPUT
           else
             echo "notify=false" >> $GITHUB_OUTPUT
           fi
       
       - name: Run stock monitor (collect only)
-        if: steps.check_noon.outputs.notify == 'false'
+        if: steps.check_notify.outputs.notify == 'false'
         run: python restock_monitor.py
       
       - name: Run stock monitor (collect + notify)
-        if: steps.check_noon.outputs.notify == 'true'
+        if: steps.check_notify.outputs.notify == 'true'
         env:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
         run: python restock_monitor.py --notify
