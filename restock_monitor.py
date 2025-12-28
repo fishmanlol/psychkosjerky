@@ -120,8 +120,13 @@ def notify_wechat(title: str, content: str):
     
     api = f"https://sctapi.ftqq.com/{send_key}.send"
     try:
-        data = urllib.parse.urlencode({"title": title, "desp": content}).encode("utf-8")
+        # FORM 方式发送
+        params = {"title": title}
+        if content:
+            params["desp"] = content
+        data = urllib.parse.urlencode(params).encode("utf-8")
         req = urllib.request.Request(api, data=data, method="POST")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
         with urllib.request.urlopen(req, timeout=20) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             print(f"[API Response] {result}")
@@ -134,34 +139,31 @@ def notify_wechat(title: str, content: str):
 
 
 def build_daily_report(all_stock: dict) -> str:
-    """生成每日库存报告（纯文本格式，兼容方糖服务号）"""
+    """生成每日库存报告（Markdown 表格格式）"""
     lines = []
-    lines.append(f"{now().strftime('%Y-%m-%d %H:%M')} PST\n")
+    lines.append(f"📅 {now().strftime('%Y-%m-%d %H:%M')} PST")
+    lines.append("")
+    lines.append("| Product | Mild | Medium | Spicy |")
+    lines.append("|---------|------|--------|-------|")
     
     for slug, product_info in PRODUCTS.items():
-        product_name = product_info["name"]
-        url = product_info["url"]
+        name = "🥩 Savory" if "savory" in slug else "🥓 Lean"
         variants = all_stock.get(slug, {})
         
-        lines.append(f"[ {product_name} ]")
-        
-        for spice in ["mild", "medium", "spicy"]:
+        def fmt(spice):
             stock = variants.get(spice, {})
             qty = stock.get("quantity", 0)
             unlimited = stock.get("unlimited", False)
-            
             if unlimited:
-                status = "unlimited"
+                return "∞"
             elif qty == 0:
-                status = "SOLD OUT"
-            elif qty <= LOW_STOCK_THRESHOLD:
-                status = f"{qty} (low)"
+                return "❌ 0"
+            elif qty <= 5:
+                return f"⚠️ {qty}"
             else:
-                status = str(qty)
-            
-            lines.append(f"  {spice.title()}: {status}")
+                return f"✅ {qty}"
         
-        lines.append(f"  {url}\n")
+        lines.append(f"| {name} | {fmt('mild')} | {fmt('medium')} | {fmt('spicy')} |")
     
     return "\n".join(lines)
 
@@ -214,7 +216,7 @@ def main():
     # 发送每日报告（仅在 --notify 模式下）
     if send_notify:
         report = build_daily_report(all_stock)
-        notify_wechat("Psych Ko's Jerky Stock Report", report)
+        notify_wechat("Jerky Stock Report", report)
     
     print(f"历史已追加到 {HISTORY_FILE.resolve()}")
 
