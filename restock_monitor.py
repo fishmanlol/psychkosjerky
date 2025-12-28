@@ -134,16 +134,16 @@ def notify_wechat(title: str, content: str):
 
 
 def build_daily_report(all_stock: dict) -> str:
-    """生成每日库存报告"""
+    """生成每日库存报告（纯文本格式，兼容方糖服务号）"""
     lines = []
-    lines.append(f"📅 **{now().strftime('%Y-%m-%d %H:%M')}**\n")
+    lines.append(f"{now().strftime('%Y-%m-%d %H:%M')} PST\n")
     
     for slug, product_info in PRODUCTS.items():
         product_name = product_info["name"]
         url = product_info["url"]
         variants = all_stock.get(slug, {})
         
-        lines.append(f"## 📦 {product_name}\n")
+        lines.append(f"[ {product_name} ]")
         
         for spice in ["mild", "medium", "spicy"]:
             stock = variants.get(spice, {})
@@ -151,17 +151,17 @@ def build_daily_report(all_stock: dict) -> str:
             unlimited = stock.get("unlimited", False)
             
             if unlimited:
-                status = "∞ 无限"
+                status = "unlimited"
             elif qty == 0:
-                status = "❌ **缺货**"
+                status = "SOLD OUT"
             elif qty <= LOW_STOCK_THRESHOLD:
-                status = f"⚠️ **{qty}** (低库存)"
+                status = f"{qty} (low)"
             else:
-                status = f"✅ {qty}"
+                status = str(qty)
             
-            lines.append(f"- {spice.title()}: {status}")
+            lines.append(f"  {spice.title()}: {status}")
         
-        lines.append(f"\n🔗 [查看商品]({url})\n")
+        lines.append(f"  {url}\n")
     
     return "\n".join(lines)
 
@@ -214,7 +214,7 @@ def main():
     # 发送每日报告（仅在 --notify 模式下）
     if send_notify:
         report = build_daily_report(all_stock)
-        notify_wechat("🥩 Psych Ko's Jerky 库存日报", report)
+        notify_wechat("Psych Ko's Jerky Stock Report", report)
     
     print(f"历史已追加到 {HISTORY_FILE.resolve()}")
 
