@@ -9384,3 +9384,9 @@ timestamp,unix_ts,product_slug,product_name,spice_level,quantity,unlimited,sold_
 2026-01-26T14:53:29.271145-08:00,1769468009,crispy-lean,Extra Crispy Lean,mild,0,False,True
 2026-01-26T14:53:29.271218-08:00,1769468009,crispy-lean,Extra Crispy Lean,medium,7,False,False
 2026-01-26T14:53:29.271260-08:00,1769468009,crispy-lean,Extra Crispy Lean,spicy,11,False,False
+2026-01-26T15:23:08.775965-08:00,1769469788,crispy-savory,Medium Crispy Savory,mild,29,False,False
+2026-01-26T15:23:08.776058-08:00,1769469788,crispy-savory,Medium Crispy Savory,medium,32,False,False
+2026-01-26T15:23:08.776099-08:00,1769469788,crispy-savory,Medium Crispy Savory,spicy,27,False,False
+2026-01-26T15:23:09.589291-08:00,1769469789,crispy-lean,Extra Crispy Lean,mild,0,False,True
+2026-01-26T15:23:09.589361-08:00,1769469789,crispy-lean,Extra Crispy Lean,medium,7,False,False
+2026-01-26T15:23:09.589396-08:00,1769469789,crispy-lean,Extra Crispy Lean,spicy,1,False,False
